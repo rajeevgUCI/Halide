@@ -23,7 +23,6 @@ class FindBufferSymbols : public IRVisitor {
 
     void visit_param(const string &ref_name, const Parameter &param) {
         if (param.defined() && param.is_buffer()) {
-            symbols.insert(ref_name);
             string name = param.name();
             buffers[name] =
                 BufferInfo {Variable::make(type_of<buffer_t *>(), name + ".buffer", param),
@@ -33,7 +32,6 @@ class FindBufferSymbols : public IRVisitor {
 
     void visit_buffer(const string &ref_name, const Buffer<> &buffer) {
         if (buffer.defined()) {
-            symbols.insert(ref_name);
             string name = buffer.name();
             buffers[name] =
                 BufferInfo {Variable::make(type_of<buffer_t *>(), name + ".buffer", buffer),
@@ -41,19 +39,22 @@ class FindBufferSymbols : public IRVisitor {
         }
     }
 
-    void visit(const Variable *op) {
+    void visit(const Variable *op) override {
         visit_param(op->name, op->param);
         visit_buffer(op->name, op->image);
+        symbols.insert(op->name);
     }
 
-    void visit(const Load *op) {
+    void visit(const Load *op) override {
         visit_param(op->name, op->param);
         visit_buffer(op->name, op->image);
+        symbols.insert(op->name);
         IRVisitor::visit(op);
     }
 
-    void visit(const Store *op) {
+    void visit(const Store *op) override {
         visit_param(op->name, op->param);
+        symbols.insert(op->name);
         IRVisitor::visit(op);
     }
 

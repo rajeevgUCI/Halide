@@ -2,7 +2,7 @@
 #define HALIDE_SCOPE_H
 
 #include <iostream>
-#include <map>
+#include <unordered_map>
 #include <stack>
 #include <string>
 #include <utility>
@@ -89,7 +89,7 @@ public:
 template<typename T = void>
 class Scope {
 private:
-    std::map<std::string, SmallStack<T>> table;
+    std::unordered_map<std::string, SmallStack<T>> table;
 
     // Copying a scope object copies a large table full of strings and
     // stacks. Bad idea.
@@ -120,12 +120,12 @@ public:
     template<typename T2 = T,
              typename = typename std::enable_if<!std::is_same<T2, void>::value>::type>
     T2 get(const std::string &name) const {
-        typename std::map<std::string, SmallStack<T>>::const_iterator iter = table.find(name);
+        typename std::unordered_map<std::string, SmallStack<T>>::const_iterator iter = table.find(name);
         if (iter == table.end() || iter->second.empty()) {
             if (containing_scope) {
                 return containing_scope->get(name);
             } else {
-                internal_error << "Name not in Scope: " << name << "\n";
+                internal_error << "Name not in Scope: " << name << "\n" << *this << "\n";
             }
         }
         return iter->second.top();
@@ -135,16 +135,16 @@ public:
     template<typename T2 = T,
              typename = typename std::enable_if<!std::is_same<T2, void>::value>::type>
     T2 &ref(const std::string &name) {
-        typename std::map<std::string, SmallStack<T>>::iterator iter = table.find(name);
+        typename std::unordered_map<std::string, SmallStack<T>>::iterator iter = table.find(name);
         if (iter == table.end() || iter->second.empty()) {
-            internal_error << "Name not in Scope: " << name << "\n";
+            internal_error << "Name not in Scope: " << name << "\n" << *this << "\n";
         }
         return iter->second.top_ref();
     }
 
     /** Tests if a name is in scope */
     bool contains(const std::string &name) const {
-        typename std::map<std::string, SmallStack<T>>::const_iterator iter = table.find(name);
+        typename std::unordered_map<std::string, SmallStack<T>>::const_iterator iter = table.find(name);
         if (iter == table.end() || iter->second.empty()) {
             if (containing_scope) {
                 return containing_scope->contains(name);
@@ -174,8 +174,8 @@ public:
      * was (or remove it entirely if there was nothing else of the
      * same name in an outer scope) */
     void pop(const std::string &name) {
-        typename std::map<std::string, SmallStack<T>>::iterator iter = table.find(name);
-        internal_assert(iter != table.end()) << "Name not in Scope: " << name << "\n";
+        typename std::unordered_map<std::string, SmallStack<T>>::iterator iter = table.find(name);
+        internal_assert(iter != table.end()) << "Name not in Scope: " << name << "\n" << *this << "\n";
         iter->second.pop();
         if (iter->second.empty()) {
             table.erase(iter);
@@ -184,9 +184,9 @@ public:
 
     /** Iterate through the scope. Does not capture any containing scope. */
     class const_iterator {
-        typename std::map<std::string, SmallStack<T>>::const_iterator iter;
+        typename std::unordered_map<std::string, SmallStack<T>>::const_iterator iter;
     public:
-        explicit const_iterator(const typename std::map<std::string, SmallStack<T>>::const_iterator &i) :
+        explicit const_iterator(const typename std::unordered_map<std::string, SmallStack<T>>::const_iterator &i) :
             iter(i) {
         }
 
@@ -208,7 +208,9 @@ public:
             return iter->second;
         }
 
-        const T &value() {
+        template<typename T2 = T,
+                 typename = typename std::enable_if<!std::is_same<T2, void>::value>::type>
+        const T2 &value() {
             return iter->second.top_ref();
         }
     };
@@ -222,9 +224,9 @@ public:
     }
 
     class iterator {
-        typename std::map<std::string, SmallStack<T>>::iterator iter;
+        typename std::unordered_map<std::string, SmallStack<T>>::iterator iter;
     public:
-        explicit iterator(typename std::map<std::string, SmallStack<T>>::iterator i) :
+        explicit iterator(typename std::unordered_map<std::string, SmallStack<T>>::iterator i) :
             iter(i) {
         }
 
@@ -246,7 +248,9 @@ public:
             return iter->second;
         }
 
-        T &value() {
+        template<typename T2 = T,
+                 typename = typename std::enable_if<!std::is_same<T2, void>::value>::type>
+        T2 &value() {
             return iter->second.top_ref();
         }
     };
@@ -307,13 +311,21 @@ struct ScopedBinding {
 
 template<>
 struct ScopedBinding<void> {
-    Scope<> &scope;
+    Scope<> *scope;
     std::string name;
-    ScopedBinding(Scope<> &scope, const std::string &name) : scope(scope), name(name) {
-        scope.push(name);
+    ScopedBinding(Scope<> &s, const std::string &n) : scope(&s), name(n) {
+        scope->push(name);
+    }
+    ScopedBinding(bool condition, Scope<> &s, const std::string &n) :
+        scope(condition ? &s : nullptr), name(n) {
+        if (condition) {
+            scope->push(name);
+        }
     }
     ~ScopedBinding() {
-        scope.pop(name);
+        if (scope) {
+            scope->pop(name);
+        }
     }
 };
 
