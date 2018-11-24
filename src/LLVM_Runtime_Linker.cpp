@@ -403,10 +403,7 @@ llvm::Triple get_triple_for_target(const Target &target) {
             user_assert(target.bits == 64) << "Target bits must be 32 or 64\n";
             triple.setArch(llvm::Triple::wasm64);
         }
-        // Use llvm::Triple::ELF (instead of llvm::Triple::Wasm) for
-        // compatibility with binaryen's s2wasm .
-        // See https://github.com/WebAssembly/binaryen/issues/1447
-        triple.setObjectFormat(llvm::Triple::ELF);
+        triple.setObjectFormat(llvm::Triple::Wasm);
     } else {
         internal_error << "Bad target arch: " << target.arch << "\n";
     }
