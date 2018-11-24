@@ -5,7 +5,17 @@ git clone -b "webassembly" https://github.com/rajeevgUCI/Halide.git
 
 To build:
 
-Clone and build my forked llvm repository, as described in the README for that repository.
+Clone and build LLVM 7.0.0 with clang and lld as follows:
+```
+cd <parent-dir-of-llvm>
+git clone -b "release_70" https://github.com/llvm-mirror/llvm.git llvm
+git clone -b "release_70" https://github.com/llvm-mirror/clang.git llvm/tools/clang
+git clone -b "release_70" https://github.com/llvm-mirror/lld llvm/tools/lld
+cd llvm
+mkdir build
+cd build
+cmake -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_TARGETS_TO_BUILD= -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=WebAssembly -DLLVM_ENABLE_ASSERTIONS=ON -DCMAKE_BUILD_TYPE=Release ..
+```
 
 Then, build Halide:
 ```bash
